@@ -15,6 +15,12 @@ from typing_extensions import Annotated
 
 from react_agent.configuration import Configuration
 
+from MeteorClient import MeteorClient
+
+client = MeteorClient('ws://plaiground.coding-pioneers.com/websocket')
+client.connect()
+client.login('testAgent@coding-pioneers.com', 'reasonablySecurePasswordFnord')
+
 
 async def search(
     query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]
@@ -30,5 +36,26 @@ async def search(
     result = await wrapped.ainvoke({"query": query})
     return cast(list[dict[str, Any]], result)
 
+async def test_call(
+    query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]
+) -> str:
+    """Make a test call to the Meteor Server"""
+    try:
+        # Create a future that will be resolved by the callback
+        future = asyncio.Future()
+        
+        def callback(error, result):
+            if error:
+                future.set_result("error")
+            else:
+                future.set_result("ok")
+        
+        # Make the call with the callback
+        client.call('testCall', [query], callback)
+        
+        # Wait for the callback to resolve the future
+        return await future
+    except Exception as e:
+        return f"error: {str(e)}"
 
-TOOLS: List[Callable[..., Any]] = [search]
+TOOLS: List[Callable[..., Any]] = [search, test_call]
