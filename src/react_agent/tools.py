@@ -16,6 +16,7 @@ from typing_extensions import Annotated
 from react_agent.configuration import Configuration
 
 from MeteorClient import MeteorClient
+import asyncio
 
 async def search(
     query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]
@@ -47,9 +48,7 @@ async def test_call(
         future = asyncio.Future()
         
         def callback(error, result):
-            if error:
-                future.set_result(f"Error: {error}")
-            else:
+            if result:
                 future.set_result(f"Success: {result}")
         
         # Connect to the server
