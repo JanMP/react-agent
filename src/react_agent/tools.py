@@ -15,12 +15,7 @@ from typing_extensions import Annotated
 
 from react_agent.configuration import Configuration
 
-# from MeteorClient import MeteorClient
-
-# client = MeteorClient('ws://plaiground.coding-pioneers.com/websocket')
-# client.connect()
-# client.login('testAgent@coding-pioneers.com', 'reasonablySecurePasswordFnord')
-
+from MeteorClient import MeteorClient
 
 async def search(
     query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]
@@ -40,23 +35,37 @@ async def test_call(
     query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]
 ) -> str:
     """Make a test call to the Meteor Server"""
-    # try:
-    #     # Create a future that will be resolved by the callback
-    #     future = asyncio.Future()
+    try:
+        # Get configuration (you may want to add meteor_url to your Configuration class)
+        configuration = Configuration.from_runnable_config(config)
+        meteor_url = getattr(configuration, 'meteor_url', 'ws://localhost:3000/websocket')
         
-    #     def callback(error, result):
-    #         if error:
-    #             future.set_result("error")
-    #         else:
-    #             future.set_result("ok")
+        # Create a client and connect
+        client = MeteorClient(meteor_url)
         
-    #     # Make the call with the callback
-    #     client.call('testCall', [query], callback)
+        # Create a future that will be resolved by the callback
+        future = asyncio.Future()
         
-    #     # Wait for the callback to resolve the future
-    #     return await future
-    # except Exception as e:
-    #     return f"error: {str(e)}"
-    return "ok"
+        def callback(error, result):
+            if error:
+                future.set_result(f"Error: {error}")
+            else:
+                future.set_result(f"Success: {result}")
+        
+        # Connect to the server
+        client.connect()
+        
+        # Make the call with the callback
+        client.call('testCall', [query], callback)
+        
+        # Wait for the callback to resolve the future
+        try:
+            return await future
+        finally:
+            # Disconnect when done
+            client.disconnect()
+            
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 TOOLS: List[Callable[..., Any]] = [search, test_call]

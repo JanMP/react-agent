@@ -37,6 +37,10 @@ class Configuration:
         },
     )
 
+    # Meteor configuration
+    meteor_url: str = "ws://plaiground.coding-pioneers.com/websocket"
+    
+
     @classmethod
     def from_runnable_config(
         cls, config: Optional[RunnableConfig] = None
