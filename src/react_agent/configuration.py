@@ -38,7 +38,7 @@ class Configuration:
     )
 
     # Meteor configuration
-    meteor_url: str = "ws://plaiground.coding-pioneers.com/websocket"
+    meteor_url: str = "ws://plaiground.coding-pioneers.com:3000/websocket"
     
 
     @classmethod

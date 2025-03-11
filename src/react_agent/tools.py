@@ -39,7 +39,7 @@ async def test_call(
     try:
         # Get configuration (you may want to add meteor_url to your Configuration class)
         configuration = Configuration.from_runnable_config(config)
-        meteor_url = getattr(configuration, 'meteor_url', 'ws://localhost:3000/websocket')
+        meteor_url = getattr(configuration, 'meteor_url', 'ws://plaiground.coding-pioneers.com:3000/websocket')
         
         # Create a client and connect
         client = MeteorClient(meteor_url)
