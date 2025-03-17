@@ -15,8 +15,7 @@ from typing_extensions import Annotated
 
 from react_agent.configuration import Configuration
 
-from MeteorClient import MeteorClient
-import asyncio
+from react_agent.meteor_tools import METEOR_TOOLS
 
 async def search(
     query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]
@@ -32,39 +31,5 @@ async def search(
     result = await wrapped.ainvoke({"query": query})
     return cast(list[dict[str, Any]], result)
 
-async def test_call(
-    query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]
-) -> str:
-    """Make a test call to the Meteor Server"""
-    try:
-        # Get configuration (you may want to add meteor_url to your Configuration class)
-        configuration = Configuration.from_runnable_config(config)
-        meteor_url = getattr(configuration, 'meteor_url', 'ws://plaiground.coding-pioneers.com:3000/websocket')
-        
-        # Create a client and connect
-        client = MeteorClient(meteor_url)
-        
-        # Create a future that will be resolved by the callback
-        future = asyncio.Future()
-        
-        def callback(error, result):
-            if result:
-                future.set_result(f"Success: {result}")
-        
-        # Connect to the server
-        client.connect()
-        
-        # Make the call with the callback
-        client.call('testCall', [query], callback)
-        
-        # Wait for the callback to resolve the future
-        try:
-            return await future
-        finally:
-            # Disconnect when done
-            client.disconnect()
-            
-    except Exception as e:
-        return f"Error: {str(e)}"
 
-TOOLS: List[Callable[..., Any]] = [search, test_call]
+TOOLS: List[Callable[..., Any]] = [search, *METEOR_TOOLS]
