@@ -1,6 +1,6 @@
 """Define the configurable parameters for the agent."""
-
 from __future__ import annotations
+import os
 
 from dataclasses import dataclass, field, fields
 from typing import Annotated, Optional
@@ -23,7 +23,8 @@ class Configuration:
     )
 
     model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default="anthropic/claude-3-5-sonnet-20240620",
+        # default="mistralai/mistral-small-2501",
+        default="anthropic/claude-3-7-sonnet-latest",
         metadata={
             "description": "The name of the language model to use for the agent's main interactions. "
             "Should be in the form: provider/model-name."
@@ -38,8 +39,9 @@ class Configuration:
     )
 
     # Meteor configuration
-    meteor_url: str = "ws://plaiground.coding-pioneers.com:3000/websocket"
-    
+    meteor_url: str = "ws://127.0.0.1:3000/websocket"
+    meteor_user_name: str = "LangGraphAgent"
+    meteor_user_password: str = os.environ.get("AGENT_PLAIGROUND_PASSWORD")
 
     @classmethod
     def from_runnable_config(
