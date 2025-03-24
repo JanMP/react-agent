@@ -56,4 +56,12 @@ async def search(
     return cast(list[dict[str, Any]], result)
 
 
-TOOLS: List[Callable[..., Any]] = [search, *meteor_tools]
+async def finish(
+    *, config: Annotated[RunnableConfig, InjectedToolArg]
+) -> str:
+    """Use this tool when you've gathered all necessary information and are ready to provide your final answer.
+
+    This tool doesn't require any parameters - just call it when you're ready to conclude.
+    """
+    return "Switching to final answer generation mode."
+TOOLS: List[Callable[..., Any]] = [search, finish, *meteor_tools]
