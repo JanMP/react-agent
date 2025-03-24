@@ -15,7 +15,31 @@ from typing_extensions import Annotated
 
 from react_agent.configuration import Configuration
 
-from react_agent.meteor_tools import METEOR_TOOLS
+from react_agent.meteor_tools import create_tools
+
+meteor_tools = create_tools(
+    [
+        {
+            "method_name": "TestCall",
+            "json_schema": {
+                "type": "object",
+                "properties": {
+                    "testString": {
+                        "type": "string",
+                        "description": "A test string to send to the server",
+                    },
+                    "testNumber": {
+                        "type": "number",
+                        "description": "A test number to send to the server",
+                    },
+                },
+                "required": ["testString", "testNumber"],
+                "description": "A test method to send a string and a number to the server and receive the same parameters as a response",
+            },
+        }
+    ]
+)
+
 
 async def search(
     query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]
@@ -32,4 +56,4 @@ async def search(
     return cast(list[dict[str, Any]], result)
 
 
-TOOLS: List[Callable[..., Any]] = [search, *METEOR_TOOLS]
+TOOLS: List[Callable[..., Any]] = [search, *meteor_tools]
