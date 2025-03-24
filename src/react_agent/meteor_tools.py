@@ -81,7 +81,7 @@ class MeteorClientManager:
         return await future
 
 
-def create_meteor_tool(
+def create_tool(
     method_name: str,
     json_schema: Optional[Dict[str, Any]] = None,
     description: Optional[str] = None,
@@ -99,22 +99,18 @@ def create_meteor_tool(
     """
     # Default description if none provided
     if description is None:
-        schema_note = " (See schema for parameter details)" if json_schema else ""
-        description = f"Call the Meteor method '{method_name}' with the provided query.{schema_note}"
+        description = f"Call the Meteor method '{method_name}' with the provided query."
         
         if json_schema:
-            # Add schema details to the description
+            # Add schema description if available
             schema_desc = json_schema.get("description", "")
             if schema_desc:
                 description += f"\n\n{schema_desc}"
-            
-            # Add properties information
-            props = json_schema.get("properties", {})
-            if props:
-                description += "\n\nParameters:"
-                for prop_name, prop_details in props.items():
-                    prop_desc = prop_details.get("description", "No description")
-                    description += f"\n- {prop_name}: {prop_desc}"
+    
+    # Include the full JSON schema in the tool description
+    if json_schema:
+        description += f"\n\nJSON Schema: {json.dumps(json_schema, indent=2)}"
+        description += "\n\nWhen calling this tool, ensure your input is a valid JSON object that conforms to this schema."
     
     async def meteor_tool(
         query: str, *, config: Annotated[RunnableConfig, InjectedToolArg]
@@ -158,7 +154,7 @@ def create_meteor_tool(
     return meteor_tool
 
 
-def create_meteor_tools(
+def create_tools(
     method_specs: List[Dict[str, Any]]
 ) -> List[Callable]:
     """
@@ -179,30 +175,31 @@ def create_meteor_tools(
         json_schema = spec.get("json_schema")
         description = spec.get("description")
         
-        tool = create_meteor_tool(method_name, json_schema, description)
+        tool = create_tool(method_name, json_schema, description)
         tools.append(tool)
     
     return tools
 
 
 # Create example tools
-METEOR_TOOLS = create_meteor_tools([
-    {
-        "method_name": "TestCall",
-        "json_schema": {
-            "type": "object",
-            "properties": {
-                "testString": {
-                    "type": "string",
-                    "description": "A test string to send to the server"
+if __name__ == "__main__":
+    METEOR_TOOLS = create_tools([
+        {
+            "method_name": "TestCall",
+            "json_schema": {
+                "type": "object",
+                "properties": {
+                    "testString": {
+                        "type": "string",
+                        "description": "A test string to send to the server"
+                    },
+                    "testNumber": {
+                        "type": "number",
+                        "description": "A test number to send to the server"
+                    }
                 },
-                "testNumber": {
-                    "type": "number",
-                    "description": "A test number to send to the server"
-                }
-            },
-            "required": ["testString", "testNumber"],
-            "description": "A test method to send a string and a number to the server and receive the same parameters as a response"
+                "required": ["testString", "testNumber"],
+                "description": "A test method to send a string and a number to the server and receive the same parameters as a response"
+            }
         }
-    }
-])
+    ])
