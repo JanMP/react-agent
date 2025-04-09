@@ -14,17 +14,26 @@ from react_agent import prompts
 class Configuration:
     """The configuration for the agent."""
 
-    system_prompt: str = field(
-        default=prompts.SYSTEM_PROMPT,
+    reasoner_prompt: str = field(
+        default=prompts.REASONER_PROMPT,
         metadata={
-            "description": "The system prompt to use for the agent's interactions. "
-            "This prompt sets the context and behavior for the agent."
+            "description": "The system prompt for the reasoning/research phase."
+        },
+    )
+
+    final_response_prompt: str = field(
+        default=prompts.FINAL_RESPONSE_PROMPT,
+        metadata={
+            "description": "The system prompt for the final response phase."
         },
     )
 
     model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
         # default="mistralai/mistral-small-2501",
-        default="anthropic/claude-3-7-sonnet-latest",
+        default="anthropic/claude-3-5-haiku-latest",
+        # default="anthropic/claude-3-5-sonnet-latest",
+        # default="anthropic/claude-3-7-sonnet-latest",
+        # default="ollama/phi4-mini:latest",
         metadata={
             "description": "The name of the language model to use for the agent's main interactions. "
             "Should be in the form: provider/model-name."
@@ -41,7 +50,7 @@ class Configuration:
     # Meteor configuration
     meteor_url: str = "ws://127.0.0.1:3000/websocket"
     meteor_user_name: str = "LangGraphAgent"
-    meteor_user_password: str = os.environ.get("AGENT_PLAIGROUND_PASSWORD")
+    meteor_user_password: str = os.environ.get("AGENT_PLAIGROUND_PASSWORD") or "fnord"
 
     @classmethod
     def from_runnable_config(

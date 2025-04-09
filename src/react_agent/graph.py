@@ -6,7 +6,7 @@ Works with a chat model with tool calling support.
 from datetime import datetime, timezone
 from typing import Dict, List, Literal, cast
 
-from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph
 from langgraph.prebuilt import ToolNode
@@ -16,30 +16,21 @@ from react_agent.state import InputState, State
 from react_agent.tools import TOOLS
 from react_agent.utils import load_chat_model
 
-# Define the function that calls the model
-
 
 async def reasoner(
     state: State, config: RunnableConfig
 ) -> Dict[str, List[AIMessage]]:
-    """Call the LLM powering our "agent".
-
-    This function prepares the prompt, initializes the model, and processes the response.
-
-    Args:
-        state (State): The current state of the conversation.
-        config (RunnableConfig): Configuration for the model run.
-
-    Returns:
-        dict: A dictionary containing the model's response message.
-    """
+    """Call the LLM powering our research agent with enforced tool usage."""
     configuration = Configuration.from_runnable_config(config)
 
-    # Initialize the model with tool binding. Change the model or add more tools here.
-    model = load_chat_model(configuration.model).bind_tools(TOOLS)
+    # Get the provider from the model name
+    # provider = configuration.model.split('/')[0].lower() if '/' in configuration.model else ""
 
-    # Format the system prompt. Customize this to change the agent's behavior.
-    system_message = configuration.system_prompt.format(
+    # Initialize the model with tool binding
+    model = load_chat_model(configuration.model).bind_tools(TOOLS, tool_choice="auto")
+
+    # Format the system prompt
+    system_message = configuration.reasoner_prompt.format(
         system_time=datetime.now(tz=timezone.utc).isoformat()
     )
 
@@ -51,13 +42,13 @@ async def reasoner(
         ),
     )
 
-    # Handle the case when it's the last step and the model still wants to use a tool
+    # Handle the last step case
     if state.is_last_step and response.tool_calls:
         return {
             "messages": [
                 AIMessage(
                     id=response.id,
-                    content="Sorry, I could not find an answer to your question in the specified number of steps.",
+                    content="I've reached the maximum number of steps. Here's what I've found so far."
                 )
             ]
         }
@@ -69,25 +60,18 @@ async def reasoner(
 async def final_response(
     state: State, config: RunnableConfig
 ) -> Dict[str, List[AIMessage]]:
-    """Generate a comprehensive final answer based on collected information.
-
-    This node creates a new response that synthesizes all information gathered during
-    the conversation into a clear final answer.
-    """
+    """Generate a comprehensive final answer based on collected information."""
     configuration = Configuration.from_runnable_config(config)
 
     # Initialize the model without tool binding for the final response
     model = load_chat_model(configuration.model)
 
-    # Create system message for final response generation
-    system_message = (
-        configuration.system_prompt +
-        "\n\nBased on all information gathered so far, provide a comprehensive, "
-        "clear, and direct final answer to the user's original question. "
-        "Don't mention your research process or tool usage in your answer."
-    ).format(system_time=datetime.now(tz=timezone.utc).isoformat())
+    # Use the final response specific prompt
+    system_message = configuration.final_response_prompt.format(
+        system_time=datetime.now(tz=timezone.utc).isoformat()
+    )
 
-    # Generate the final response using the full conversation history
+    # Generate the final response
     response = cast(
         AIMessage,
         await model.ainvoke(
@@ -99,64 +83,52 @@ async def final_response(
     return {"messages": [response]}
 
 
-# Define a new graph
+async def reasoner_talkback(state: State, config: RunnableConfig) -> Dict[str, List]:
+    """Add a reminder to use tools."""
+    retry_message = HumanMessage(content="""
+        This is a message from the system:
+        You have not used any tools in your previous message, so we assume you have been talking to yourself to plan and reason.
+        You should use a tool in your answer to this message to either perform the required actions or
+        use the finish tool to hand over to the Agent that communicates the results
+        """)
 
-builder = StateGraph(State, input=InputState, config_schema=Configuration)
-
-# Define the two nodes we will cycle between
-builder.add_node(reasoner)
-builder.add_node("tools", ToolNode(TOOLS))
-builder.add_node(final_response)
-
-# Set the entrypoint as `reasoner`
-# This means that this node is the first one called
-builder.add_edge("__start__", "reasoner")
+    # Return the updated messages
+    return {"messages": [retry_message]}
 
 
-def route_model_output(state: State) -> Literal["tools", "__end__"]:
+
+def route_after_reasoner(state: State) -> Literal["tools", "reasoner_talkback", "final_response"]:
     """Determine the next node based on the model's output."""
     last_message = state.messages[-1]
     if not isinstance(last_message, AIMessage):
         raise ValueError(
             f"Expected AIMessage in output edges, but got {type(last_message).__name__}"
-        )
-    # If there are no tool calls, default to ending
-    if not last_message.tool_calls:
-        return "__end__"
+)
 
-    # Always go to tools if there are tool calls
+    # If this is the last step and there are no tool calls, go straight to final_response
+    if state.is_last_step and not last_message.tool_calls:
+        return "final_response"
+
+    # If there are no tool calls but not the last step, go to reasoner_talkback
+    if not last_message.tool_calls:
+        return "reasoner_talkback"
+
+    # Otherwise, use tools
     return "tools"
 
 
 def route_after_tools(state: State) -> Literal["reasoner", "final_response"]:
     """Determine where to go after executing tools."""
-    # Option 1: Check if we've reached a maximum number of tool calls
-    tool_calls_count = sum(
-        1 for msg in state.messages
-        if isinstance(msg, AIMessage) and msg.tool_calls
-    )
-    if tool_calls_count >= 3:  # Set a reasonable limit
-        return "final_response"
 
-    # Option 2: Check if the most recent tool result contains conclusive information
-    # For example, you might look for specific patterns in the results
     last_message = state.messages[-1]
-    if isinstance(last_message, HumanMessage):
-        content_str = str(last_message.content)
-        if "founder" in content_str.lower() and "Harrison Chase" in content_str:
-            return "final_response"
+
+    # If the last message is a tool result, and the tool name is "finish" go to 'final_response
+    if isinstance(last_message, ToolMessage) and last_message.name == "finish":
+        return "final_response"
 
     # By default, continue the reasoning process
     return "reasoner"
 
-
-# Add a conditional edge to determine the next step after `reasoner`
-builder.add_conditional_edges(
-    "reasoner",
-    # After reasoner finishes running, the next node(s) are scheduled
-    # based on the output from route_model_output
-    route_model_output,
-)
 
 def create_react_agent():
     workflow = StateGraph(State, input=InputState, config_schema=Configuration)
@@ -165,18 +137,17 @@ def create_react_agent():
     workflow.add_node("reasoner", reasoner)  # Using the existing reasoner function in your code
     workflow.add_node("tools", ToolNode(TOOLS))
     workflow.add_node("final_response", final_response)
+    workflow.add_node("reasoner_talkback", reasoner_talkback)
 
     # Create edges
     workflow.add_edge("__start__", "reasoner")
-    workflow.add_conditional_edges("reasoner", route_model_output)
+    workflow.add_conditional_edges("reasoner", route_after_reasoner)
     workflow.add_conditional_edges("tools", route_after_tools)
+    workflow.add_edge("reasoner_talkback", "reasoner")
     workflow.add_edge("final_response", "__end__")
 
     # Compile the workflow - Only stream the final_response node
-    graph = workflow.compile(
-        interrupt_before=[],
-        interrupt_after=["final_response"],  # Only stream the final response
-    )
+    graph = workflow.compile()
     graph.name = "ReAct Agent"
 
     return graph

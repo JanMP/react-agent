@@ -109,7 +109,7 @@ def create_tool(
     
     # Include the full JSON schema in the tool description
     if json_schema:
-        description += f"\n\nJSON Schema: {json.dumps(json_schema, indent=2)}"
+        description += f"\n\nJSON Schema: {json.dumps(json_schema, indent=4)}"
         description += "\n\nWhen calling this tool, ensure your input is a valid JSON object that conforms to this schema."
     
     async def meteor_tool(

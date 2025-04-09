@@ -19,6 +19,7 @@ dependencies = [
     "tavily-python>=0.4.0",
     "python-meteor>=0.1.5",
     "langchain-mistralai>=0.1.0",
+    "langchain-ollama>=0.3.0",
 ]
 
 
