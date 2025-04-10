@@ -48,8 +48,8 @@ class Configuration:
     )
 
     # Meteor configuration
-    meteor_url: str = "ws://127.0.0.1:3000/websocket"
-    meteor_user_name: str = "LangGraphAgent"
+    meteor_url: str = os.environ.get("METEOR_URL") or "ws://127.0.0.1:3000/websocket"
+    meteor_user_name: str = os.environ.get("AGENT_PLAIGROUND_USERNAME") or "LangGraphAgent"
     meteor_user_password: str = os.environ.get("AGENT_PLAIGROUND_PASSWORD") or "fnord"
 
     @classmethod
