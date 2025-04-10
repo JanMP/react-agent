@@ -1,5 +1,6 @@
 .DS_Store
 get-pip.py
+.vscode/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
