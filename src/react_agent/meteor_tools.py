@@ -8,6 +8,7 @@ that interact with Meteor methods.
 
 import asyncio
 import json
+import time
 from typing import Any, Callable, Dict, List, Union, Optional
 from typing_extensions import Annotated
 
@@ -37,23 +38,43 @@ class MeteorClientManager:
         """
         Get the shared MeteorClient instance, connecting and logging in if necessary.
         """
-        # Create client if it doesn't exist or URL has changed
-        if self._client is None or self._endpoint != meteor_url:
-            self._client = MeteorClient(meteor_url)
-            self._endpoint = meteor_url  # Store the endpoint URL
+        # Always create a fresh client for cloud environments
+        # This helps avoid stale connections
+        self._client = MeteorClient(meteor_url)
+        self._endpoint = meteor_url
+        self._is_connected = False
+        self._is_logged_in = False
+        
+        try:
+            # Connect with timeout and retry logic
+            retry_count = 0
+            max_retries = 3
+            
+            while retry_count < max_retries:
+                try:
+                    self._client.connect()
+                    self._is_connected = True
+                    break
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count >= max_retries:
+                        raise Exception(f"Failed to connect after {max_retries} attempts: {str(e)}")
+                    # Exponential backoff
+                    time.sleep(1 * (2 ** (retry_count - 1)))
+            
+            # Login if credentials provided
+            if username and password and self._is_connected:
+                password_bytes = password.encode('utf-8') if isinstance(password, str) else password
+                self._client.login(username, password_bytes)
+                self._is_logged_in = True
+                
+        except Exception as e:
+            # Reset the client on connection failure
+            self._client = None
             self._is_connected = False
             self._is_logged_in = False
-        
-        # Rest of the method stays the same
-        if not self._is_connected:
-            self._client.connect()
-            self._is_connected = True
-        
-        if username and password and not self._is_logged_in:
-            password_bytes = password.encode('utf-8') if isinstance(password, str) else password
-            self._client.login(username, password_bytes)
-            self._is_logged_in = True
-        
+            raise e
+            
         return self._client
     
     async def call_method(self, method_name: str, params: Any, 
@@ -63,22 +84,31 @@ class MeteorClientManager:
         """
         Call a Meteor method using the shared client.
         """
-        client = self.get_client(meteor_url, username, password)
-        
-        # Create a future that will be resolved by the callback
-        future = asyncio.Future()
-        
-        def callback(error, result):
-            if error:
-                future.set_exception(Exception(str(error)))
-            else:
-                future.set_result(result)
-        
-        # Make the call with the callback
-        client.call(method_name, [params], callback)
-        
-        # Wait for the callback to resolve the future
-        return await future
+        # Get a fresh client for each method call when in cloud environments
+        try:
+            client = self.get_client(meteor_url, username, password)
+            
+            # Create a future that will be resolved by the callback
+            future = asyncio.Future()
+            
+            def callback(error, result):
+                if error:
+                    future.set_exception(Exception(str(error)))
+                else:
+                    future.set_result(result)
+            
+            # Make the call with the callback
+            client.call(method_name, [params], callback)
+            
+            # Wait for the callback to resolve the future with a timeout
+            try:
+                result = await asyncio.wait_for(future, timeout=30.0)
+                return result
+            except asyncio.TimeoutError:
+                raise Exception(f"Method call timed out after 30 seconds")
+                
+        except Exception as e:
+            raise Exception(f"Error calling method: {str(e)}")
 
 
 def create_tool(
