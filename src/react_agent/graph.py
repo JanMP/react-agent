@@ -27,7 +27,7 @@ async def reasoner(
     # provider = configuration.model.split('/')[0].lower() if '/' in configuration.model else ""
 
     # Initialize the model with tool binding
-    model = load_chat_model(configuration.model).bind_tools(TOOLS, tool_choice="auto")
+    model = load_chat_model(configuration.model).bind_tools(TOOLS, tool_choice="any")
 
     # Format the system prompt
     system_message = configuration.reasoner_prompt.format(

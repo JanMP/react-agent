@@ -15,9 +15,14 @@ from typing_extensions import Annotated
 
 from react_agent.configuration import Configuration
 
+from utilities.meteor_client_connection import MeteorClientConnection
+# from utilities.greeting import greeting
+# greeting("Jane Doe")
 from react_agent.meteor_tools import create_tools
 
-meteor_tools = create_tools(
+tool_client = MeteorClientConnection(Configuration.meteor_prefix)
+
+meteor_tools = tool_client.create_tools(
     [
         {
             "method_name": "TestCall",
@@ -65,3 +70,19 @@ async def finish(
     """
     return "Switching to final answer generation mode."
 TOOLS: List[Callable[..., Any]] = [search, finish, *meteor_tools]
+
+import asyncio
+
+if __name__ == "__main__":
+    print(Configuration.meteor_prefix)
+    print(tool_client.url)
+    print(tool_client.username)
+    async def main():
+        for tool in meteor_tools:
+            print(f"Tool name: {tool.__name__}")
+            print(f"Tool docstring: {tool.__doc__}")
+            print("-" * 50)
+            result = await tool('{"testString": "Hello", "testNumber": 42}')
+            print(f"Result: {result}")
+
+    asyncio.run(main())

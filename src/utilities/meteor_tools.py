@@ -18,7 +18,7 @@ from MeteorClient import MeteorClient
 from react_agent.configuration import Configuration
 
 
-class MeteorClientManager:
+class MeteorClientConnection:
     """
     A singleton manager for maintaining a persistent Meteor client connection.
     """
@@ -39,29 +39,20 @@ class MeteorClientManager:
         """
         # Create client if it doesn't exist or URL has changed
         if self._client is None or self._endpoint != meteor_url:
-            try:
-                self._client = MeteorClient(meteor_url)
-                self._endpoint = meteor_url  # Store the endpoint URL
-                self._is_connected = False
-                self._is_logged_in = False
-            except Exception as e:
-                raise ConnectionError(f"Failed to create Meteor client: {e}")
+            self._client = MeteorClient(meteor_url)
+            self._endpoint = meteor_url  # Store the endpoint URL
+            self._is_connected = False
+            self._is_logged_in = False
         
         # Rest of the method stays the same
         if not self._is_connected:
-            try:
-                self._client.connect()
-                self._is_connected = True
-            except Exception as e:
-                raise ConnectionError(f"Failed to connect to Meteor server at {self._endpoint}: {e}")
-            
+            self._client.connect()
+            self._is_connected = True
+        
         if username and password and not self._is_logged_in:
-            try:
-                password_bytes = password.encode('utf-8') if isinstance(password, str) else password
-                self._client.login(username, password_bytes)
-                self._is_logged_in = True
-            except Exception as e:
-                raise ConnectionError(f"Failed to login to Meteor server at {self._endpoint}: {e}")
+            password_bytes = password.encode('utf-8') if isinstance(password, str) else password
+            self._client.login(username, password_bytes)
+            self._is_logged_in = True
         
         return self._client
     
@@ -154,10 +145,6 @@ def create_tool(
             return result
                 
         except Exception as e:
-            print("#" * 50)
-            print(f"Error calling Meteor method '{method_name}': {str(e)}")
-            print(params)
-            print("#" * 50)
             return f"Error calling Meteor method '{method_name}': {str(e)}"
     
     # Set metadata for the tool function

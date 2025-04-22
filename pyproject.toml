@@ -20,6 +20,10 @@ dependencies = [
     "python-meteor>=0.1.5",
     "langchain-mistralai>=0.1.0",
     "langchain-ollama>=0.3.0",
+    "sqlalchemy>=2.0.20",
+    "pymysql>=1.1.0",
+    "pandas>=2.0.3",
+    "react_agent",  # Add this line
 ]
 
 
@@ -31,10 +35,13 @@ requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["langgraph.templates.react_agent", "react_agent"]
+packages = ["src", "langgraph.templates.react_agent", "react_agent", "review_summary_agent", "utilities"]
 [tool.setuptools.package-dir]
+"src" = "src"
 "langgraph.templates.react_agent" = "src/react_agent"
 "react_agent" = "src/react_agent"
+"review_summary_agent" = "src/review_summary_agent"
+"utilities" = "src/utilities"
 
 
 [tool.setuptools.package-data]
