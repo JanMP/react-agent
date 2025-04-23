@@ -14,7 +14,8 @@ import pandas as pd
 
 model = ChatOpenAI(model="gpt-4.1", temperature=0)
 
-from utilities.meteor_client_connection import MeteorClientConnection
+# Updated import path to use the correct module structure
+from src.utilities.meteor_client_connection import MeteorClientConnection
 connection = MeteorClientConnection("REVIEW_SUMMARY_AGENT")
 
 async def save_to_meteor(data: dict):

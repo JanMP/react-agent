@@ -1,5 +1,5 @@
 {
-  "dependencies": ["src"],
+  "dependencies": ["./src/react_agent", "./src/review_summary_agent"],
   "graphs": {
     "agent": "./src/react_agent/graph.py:graph",
     "review_summary_agent": "./src/review_summary_agent/graph.py:graph"

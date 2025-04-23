@@ -15,8 +15,9 @@ from typing_extensions import Annotated
 
 from react_agent.configuration import Configuration
 
-from utilities.meteor_client_connection import MeteorClientConnection
-# from utilities.greeting import greeting
+# Updated import statements to use correct module paths
+from src.utilities.meteor_client_connection import MeteorClientConnection
+# from src.utilities.greeting import greeting
 # greeting("Jane Doe")
 from react_agent.meteor_tools import create_tools
 
